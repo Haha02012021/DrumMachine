@@ -22,7 +22,7 @@ button {
 #drum-machine {
   display: flex;
   align-items: center;
-  justify-contnent: center;
+  justify-content: center;
   text-align: center;
   background-color: #b3b3b3;
   border: 4px orange solid;
@@ -47,6 +47,8 @@ button {
 
 button {
    font-family: Russo One;
+   border: none;
+   border-radius: 0;
 }
 
 .function-button {
@@ -68,6 +70,7 @@ p {
 .fb {
   height: 25px;
   width: 60px;
+  margin: 0;
   border-radius: 0;
   border: none;
   background-color: black;
