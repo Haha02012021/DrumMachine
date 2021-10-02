@@ -7,7 +7,6 @@ import { combineReducers, createStore } from 'redux';
 import { connect } from 'react-redux';
 import { Provider } from 'react-redux';
 import { render } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
 
 const bankOne = [
   {
@@ -124,21 +123,24 @@ const bankTwo = [
 ];
 
 //redux
-const PAD = 'PAD'
+const CLICK_PAD = 'CLICK_PAD'
+const NO_CLICK = 'NO_CLICK'
 
 const padAction = (id) => {
   return {
-    type: PAD,
+    type: CLICK_PAD,
     id
   }
 }
 
-const padReducer = (state = {id: '', volume: 0.3, power: false}, action) => {
+const padReducer = (state = {id: '', power: false}, action) => {
   switch (action.type) {
-    case PAD:
-      return {id: action.id, volume: state.volume, power: state.power}
+    case CLICK_PAD:
+      return {id: action.id, power: state.power}
       break;
-  
+    case NO_CLICK: 
+      return state
+      break
     default: return state
       break;
   }
@@ -147,26 +149,56 @@ const padReducer = (state = {id: '', volume: 0.3, power: false}, action) => {
 const BANK_ONE = 'BANK_ONE'
 const BANK_TWO = 'BANK_TWO'
 
-const bankOneAction = () => {
+const bankOneAction = (bank) => {
   return {
-    type: BANK_ONE
+    type: BANK_ONE,
+    bank
   }
 }
 
-const bankTwoAction = () => {
+const bankTwoAction = (bank) => {
   return {
-    type: BANK_TWO
+    type: BANK_TWO,
+    bank
   }
 }
 
-const bankReducer = (state = {bank: bankOne}, action) => {
+const bankReducer = (state = {bank: bankOne, id: 'Heater Kit'}, action) => {
   switch (action.type) {
     case BANK_ONE:
-      return {bank: bankOne}
+      return {bank: action.bank, id: 'Heater Kit'}
       break;
     case BANK_TWO:
-      return {bank: bankTwo}
+      return {bank: action.bank, id: 'Smooth Piano Kit'}
       break;
+    default: return state
+      break;
+  }
+}
+
+const INCRE_VOLUME = 'INCRE_VOLUME'
+const DECRE_VOLUME = 'DECRE_VOLUME'
+
+const increVolumeAction = () => {
+  return {
+    type: INCRE_VOLUME
+  }
+}
+
+const decreVolumeAction = () => {
+  return {
+    type: DECRE_VOLUME
+  }
+}
+
+const volumeReducer = (state = 0.3, action) => {
+  switch (action.type) {
+    case INCRE_VOLUME:
+      return state + 0.01
+      break;
+    case DECRE_VOLUME:
+      return state - 0.01
+      break
     default: return state
       break;
   }
@@ -174,12 +206,16 @@ const bankReducer = (state = {bank: bankOne}, action) => {
 
 const allReducer = combineReducers({
   pad: padReducer, 
-  bank: bankReducer
+  bank: bankReducer,
+  volume: volumeReducer
 })
 
 const store = createStore(allReducer)
 
 console.log(store.getState())
+
+const styleNoPad = {backgroundColor: 'grey', boxShadow: '3px 3px 5px black', marginTop: 0}
+const stylePad = {backgroundColor: 'orange', marginTop: 3, boxShadow: '0 3px orange'}
 
 //react
 class Pad extends React.Component {
@@ -187,23 +223,39 @@ class Pad extends React.Component {
     super(props)
     this.clickOnePad = this.clickOnePad.bind(this)
   }
+
   clickOnePad(e) {
-    const audio = document.getElementsByClassName('clip')[e.target.value]      
-    audio.load()
-    audio.muted = this.props.power
-    audio.play()
-    
+    if(!store.getState().pad.power)
+     {
+      const audio = document.getElementsByClassName('clip')[e.target.value]
+      store.dispatch(padAction(e.target.id.replace(/-/g, ' ')))
+      e.target.style.backgroundColor = stylePad.backgroundColor
+      e.target.style.boxShadow = stylePad.boxShadow
+      e.target.style.marginTop = stylePad.marginTop
+      setTimeout(() => {
+        e.target.style = styleNoPad
+      }, 100);
+      audio.volume = store.getState().volume      
+      audio.play()
+     }
   }
 
   render() {
     console.log("re-render-pad")
     return(
-      <button value={this.props.value} id={this.props.id} onClick={this.clickOnePad} key={this.props.key}>{this.props.keyTrigger}
+      <button className='drum-pad' 
+              value={this.props.value} 
+              id={this.props.id} 
+              onClick={this.clickOnePad} 
+              key={this.props.key}
+              style={styleNoPad}>
+        {this.props.keyTrigger}
         <audio className='clip' src={this.props.url}></audio>
       </button> 
     )
   }
 }
+
 class DrumPad extends React.Component {
   constructor(props) {
     super(props)
@@ -212,57 +264,105 @@ class DrumPad extends React.Component {
   render() {
     console.log("re-render-drum")
     return (
-      <div>
-        {this.props.bank.bank.map((item, i) => {
+      <div className="pad-container">
+        {this.props.bank.map((item, i) => {
           return (
             <Pad id={item.id}
-                 value={i}
-                 key={item.keyCode}
-                 url={item.url}
-                 keyTrigger={item.keyTrigger}
-                 power={this.props.pad.power}
+                value={i}
+                key={item.keyCode}
+                url={item.url}
+                keyTrigger={item.keyTrigger}
             />
-          )
-        })}
+          )}
+        )}
       </div>
     )
   }
 }
 
-
+const styleButtonPower = {marginRight: 0,
+  marginLeft: 'auto'}
 class FunctionButton extends React.Component {
   constructor(props) {
     super(props)
+    this.state = {
+      bank: bankOne,
+      styleButtonBank: {marginRight: 'auto',
+        marginLeft: 0}
+    }
     this.clickBank = this.clickBank.bind(this)
     this.clickPower = this.clickPower.bind(this)
   }
 
   clickBank() {
-    if(!this.props.pad.power) {
-      if (this.props.bank.bank == bankOne) {
-        this.props.clickBankTwo()
-        this.props.pad.id = 'Smooth Piano Kit'
+    if(!store.getState().pad.power) {
+      if (this.state.bank == bankOne) {
+        this.setState({
+          bank: bankTwo,
+          styleButtonBank: {marginRight: 0,
+        marginLeft: 'auto'}
+        })
+        store.dispatch(padAction('Smooth Piano Kit'))
       }
-      else if(this.props.bank.bank == bankTwo) {
-        this.props.clickBankOne()
-        this.props.pad.id = 'Heater Kit'
+      else {
+        this.setState({
+          bank: bankOne,
+          styleButtonBank: {marginRight: 'auto',
+        marginLeft: 0}
+        })
+        store.dispatch(padAction('Heater Kit'))
       }
     }
   }
 
-  clickPower() {
-    if(this.props.pad.power) this.props.pad.power = true
-    else this.props.pad.power = false
+  clickPower(e) {
+    if(!store.getState().pad.power) {
+      store.getState().pad.power = true
+      e.target.style.marginRight = 'auto'
+      e.target.style.marginLeft = 0
+    }
+    else {
+      store.getState().pad.power = false
+      e.target.style.marginRight = 0
+      e.target.style.marginLeft = 'auto'
+    }
+  }
+
+  clickInc() {
+    store.dispatch(increVolumeAction())
+    store.dispatch(padAction("Volume: " + Math.round(store.getState().volume*100).toString()))
+    setTimeout(() => {
+      store.dispatch(padAction(' '))
+    }, 1000);
+  }
+
+  clickDec() {
+    store.dispatch(decreVolumeAction())
+    store.dispatch(padAction("Volumn: " + Math.round(store.getState().volume*100).toString()))
+    setTimeout(() => {
+      store.dispatch(padAction(' '))
+    }, 1000);
   }
 
 
   render() {
-    console.log("re-render-pad")
+    console.log(store.getState())
     return (
-      <div>
-        <button onClick={this.clickBank}>Bank</button>
-        <p>{this.props.pad.id}</p>
-        <button onClick={this.clickPower}>Power</button>
+      <div id='drum-machine'>
+        <DrumPad bank={this.state.bank}/>
+        <div className='function-button'>
+          <div className="button">
+            <p>Power</p>
+            <button className='fb' onClick={this.clickPower}>
+              <button id="child" style={styleButtonPower}></button>
+            </button>
+          </div>
+          <button onClick={this.clickInc}>+</button>
+          <AppWrapper />
+          <button onClick={this.clickDec}>-</button>
+          <div className="button"><p>Bank</p><button className='fb' onClick={this.clickBank}><button id="child" style={this.state.styleButtonBank}></button></button></div>
+        </div>
+        
       </div>
       
     )
@@ -282,8 +382,22 @@ const mapDispatchToProps = (dispatch) => {
   }
 }
 
-const ButtonContainer = connect(mapStateToProps, mapDispatchToProps)(FunctionButton)
-const PadContainer = connect(mapStateToProps, mapDispatchToProps)(DrumPad) 
+class Display extends React.Component {
+  constructor(props) {
+    super(props)
+  }
+
+  render() {
+    return (
+      <div id='display'>
+        {this.props.pad.id}
+      </div>
+      
+    )
+  }
+}
+
+const Container = connect(mapStateToProps, mapDispatchToProps)(Display)
 
 class AppWrapper extends React.Component {
   constructor(props) {
@@ -294,8 +408,7 @@ class AppWrapper extends React.Component {
     console.log("re-render-main")
     return (
       <Provider store={store}>
-        <ButtonContainer />
-        <PadContainer />
+        <Container />
       </Provider>
     )
   }
@@ -303,7 +416,7 @@ class AppWrapper extends React.Component {
 
 ReactDOM.render(
   <React.StrictMode>
-    <AppWrapper />
+    <FunctionButton />
   </React.StrictMode>,
   document.getElementById('root')
 );
