@@ -329,19 +329,23 @@ class FunctionButton extends React.Component {
   }
 
   clickInc() {
-    store.dispatch(increVolumeAction())
-    store.dispatch(padAction("Volume: " + Math.round(store.getState().volume*100).toString()))
-    setTimeout(() => {
-      store.dispatch(padAction(' '))
-    }, 1000);
+    if(!store.getState().pad.power) {
+      store.dispatch(increVolumeAction())
+      store.dispatch(padAction("Volume: " + Math.round(store.getState().volume*100).toString()))
+      setTimeout(() => {
+        store.dispatch(padAction(' '))
+      }, 1000);
+    }
   }
 
   clickDec() {
-    store.dispatch(decreVolumeAction())
-    store.dispatch(padAction("Volumn: " + Math.round(store.getState().volume*100).toString()))
-    setTimeout(() => {
-      store.dispatch(padAction(' '))
-    }, 1000);
+    if(!store.getState().pad.power) {
+      store.dispatch(decreVolumeAction())
+      store.dispatch(padAction("Volumn: " + Math.round(store.getState().volume*100).toString()))
+      setTimeout(() => {
+        store.dispatch(padAction(' '))
+      }, 1000);
+    }
   }
 
 
